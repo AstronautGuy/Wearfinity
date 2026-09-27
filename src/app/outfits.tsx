@@ -13,8 +13,14 @@ export default function OutfitsScreen() {
     return <Redirect href="/profiles" />;
   }
 
-  const { width } = useWindowDimensions();
-  const ITEM_WIDTH = Math.min(width * 0.4, 300); // cap max width for landscape
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  
+  // Use the smaller dimension as the baseline so items don't overflow the screen height in landscape
+  const baseDimension = Math.min(width, height);
+  
+  // Make items slightly smaller in landscape so they fit better vertically
+  const ITEM_WIDTH = isLandscape ? baseDimension * 0.35 : baseDimension * 0.5;
   const ITEM_MARGIN = (width - ITEM_WIDTH) / 2;
 
   const { clothes, outfits, categories, loadClothes, loadOutfits, loadCategories, saveOutfit } = useWardrobe(activeUser.id);
@@ -74,9 +80,16 @@ export default function OutfitsScreen() {
     if (anklets.length > 0 && ankletId === null) setAnkletId(anklets[0].id);
   }, [tops, bottoms, shoes, earrings, necklaces, rings, bracelets, anklets]);
 
-  const renderCarousel = (title: string, items: Clothing[], setValue: (id: number) => void) => {
+  const renderCarousel = (title: string, items: Clothing[], value: number | null, setValue: (id: number) => void) => {
     if (items.length === 0) {
-      return null;
+      return (
+        <View style={styles.carouselSection}>
+          <Text style={styles.carouselTitle}>{title}</Text>
+          <View style={[styles.emptySlot, { width: ITEM_WIDTH, height: ITEM_WIDTH, marginHorizontal: ITEM_MARGIN }]}>
+            <Text style={styles.emptyText}>No {title} found</Text>
+          </View>
+        </View>
+      );
     }
 
     return (
@@ -91,17 +104,36 @@ export default function OutfitsScreen() {
           data={items}
           keyExtractor={(item) => item.id.toString()}
           onViewableItemsChanged={({ viewableItems }) => {
+            // Optional: automatically select the center item when scrolling stops
             if (viewableItems.length > 0) {
               const centerItem = viewableItems[Math.floor(viewableItems.length / 2)];
-              if (centerItem) setValue(centerItem.item.id);
+              if (centerItem && centerItem.item.id !== value) {
+                setValue(centerItem.item.id);
+              }
             }
           }}
           viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
-          renderItem={({ item }) => (
-            <View style={[styles.carouselItem, { width: ITEM_WIDTH, height: ITEM_WIDTH }]}>
-              <Image source={{ uri: item.imageUri }} style={styles.carouselImage} />
-            </View>
-          )}
+          renderItem={({ item }) => {
+            const isSelected = item.id === value;
+            return (
+              <TouchableOpacity 
+                activeOpacity={0.8}
+                onPress={() => setValue(item.id)}
+                style={[
+                  styles.carouselItem, 
+                  { width: ITEM_WIDTH, height: ITEM_WIDTH },
+                  isSelected && styles.carouselItemSelected
+                ]}
+              >
+                <Image source={{ uri: item.imageUri }} style={styles.carouselImage} />
+                {isSelected && (
+                  <View style={styles.selectedOverlay}>
+                    <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          }}
         />
       </View>
     );
@@ -135,14 +167,14 @@ export default function OutfitsScreen() {
           </TouchableOpacity>
         </View>
         
-        {renderCarousel('Tops', tops, setTopId)}
-        {renderCarousel('Bottoms', bottoms, setBottomId)}
-        {renderCarousel('Shoes', shoes, setShoesId)}
-        {renderCarousel('Earrings', earrings, setEarringId)}
-        {renderCarousel('Necklaces', necklaces, setNecklaceId)}
-        {renderCarousel('Rings', rings, setRingId)}
-        {renderCarousel('Bracelets', bracelets, setBraceletId)}
-        {renderCarousel('Anklets', anklets, setAnkletId)}
+        {renderCarousel('Tops', tops, topId, setTopId)}
+        {renderCarousel('Bottoms', bottoms, bottomId, setBottomId)}
+        {renderCarousel('Shoes', shoes, shoesId, setShoesId)}
+        {renderCarousel('Earrings', earrings, earringId, setEarringId)}
+        {renderCarousel('Necklaces', necklaces, necklaceId, setNecklaceId)}
+        {renderCarousel('Rings', rings, ringId, setRingId)}
+        {renderCarousel('Bracelets', bracelets, braceletId, setBraceletId)}
+        {renderCarousel('Anklets', anklets, ankletId, setAnkletId)}
 
         <View style={styles.savedSection}>
           <Text style={styles.savedTitle}>Saved Outfits</Text>
@@ -245,7 +277,9 @@ const styles = StyleSheet.create({
   carouselSection: { marginBottom: 20 },
   carouselTitle: { paddingHorizontal: 16, fontSize: 16, fontWeight: 'bold', marginBottom: 12, color: '#374151', textTransform: 'uppercase', letterSpacing: 1 },
   carouselItem: { marginHorizontal: 10, borderRadius: 16, overflow: 'hidden', backgroundColor: '#e5e7eb', elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
+  carouselItemSelected: { borderWidth: 3, borderColor: '#4F46E5', shadowColor: '#4F46E5', shadowOpacity: 0.5, shadowRadius: 8, elevation: 8 },
   carouselImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  selectedOverlay: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 12 },
   emptySlot: { borderRadius: 16, backgroundColor: '#e5e7eb', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#d1d5db', borderStyle: 'dashed' },
   emptyText: { color: '#9ca3af', fontWeight: 'bold' },
 
