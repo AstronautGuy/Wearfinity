@@ -1,0 +1,9 @@
+{
+  "project_name": "ClothesAI",
+  "version": "1.0.0",
+  "workflow": {
+    "intel": {
+      "enabled": true
+    }
+  }
+}
